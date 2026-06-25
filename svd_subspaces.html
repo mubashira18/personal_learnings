@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SVD & Subspaces — Full Revision Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+:root {
+  --bg: #f8f7f4;
+  --card: #ffffff;
+  --border: rgba(0,0,0,0.10);
+  --border-strong: rgba(0,0,0,0.18);
+  --text: #1a1a18;
+  --muted: #6b6a65;
+  --hint: #9c9a92;
+  --radius: 12px;
+  --radius-sm: 8px;
+
+  /* SVD color identity */
+  --col-u: #185FA5;      /* U matrix — blue */
+  --col-u-light: #E6F1FB;
+  --col-u-mid: #378ADD;
+  --col-sigma: #854F0B;  /* Σ — amber */
+  --col-sigma-light: #FAEEDA;
+  --col-sigma-mid: #EF9F27;
+  --col-v: #0F6E56;      /* V — teal */
+  --col-v-light: #E1F5EE;
+  --col-v-mid: #1D9E75;
+  --col-null: #993C1D;   /* null space — coral */
+  --col-null-light: #FAECE7;
+  --col-row: #534AB7;    /* row space — purple */
+  --col-row-light: #EEEDFE;
+  --col-col: #185FA5;    /* col space */
+  --col-col-light: #E6F1FB;
+  --col-left: #3B6D11;   /* left null — green */
+  --col-left-light: #EAF3DE;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a18;
+    --card: #242422;
+    --border: rgba(255,255,255,0.10);
+    --border-strong: rgba(255,255,255,0.20);
+    --text: #e8e6dc;
+    --muted: #9c9a92;
+    --hint: #5f5e5a;
+    --col-u-light: #0C447C;
+    --col-sigma-light: #633806;
+    --col-v-light: #085041;
+    --col-null-light: #4A1B0C;
+    --col-row-light: #26215C;
+    --col-col-light: #0C447C;
+    --col-left-light: #173404;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.65; }
+
+/* NAV */
+.nav { position: sticky; top: 0; z-index: 100; background: var(--card); border-bottom: 0.5px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 0; height: 52px; overflow-x: auto; }
+.nav a { flex-shrink: 0; padding: 0 14px; height: 52px; display: flex; align-items: center; font-size: 13px; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; white-space: nowrap; transition: color .15s, border-color .15s; }
+.nav a:hover { color: var(--text); }
+.nav a.active { color: var(--col-u); border-bottom-color: var(--col-u); font-weight: 500; }
+.timer-pill { margin-left: auto; flex-shrink: 0; display: flex; align-items: center; gap: 8px; background: var(--bg); border: 0.5px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 13px; font-weight: 500; color: var(--muted); }
+#timer-display { font-variant-numeric: tabular-nums; color: var(--text); }
+.timer-pill button { background: none; border: none; cursor: pointer; color: var(--muted); display: flex; align-items: center; font-size: 14px; padding: 0; }
+
+/* LAYOUT */
+.page { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.section { margin-bottom: 56px; scroll-margin-top: 60px; }
+h1 { font-size: 28px; font-weight: 500; margin-bottom: 6px; }
+.subtitle { color: var(--muted); font-size: 15px; margin-bottom: 32px; }
+h2 { font-size: 20px; font-weight: 500; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 0.5px solid var(--border); }
+h3 { font-size: 16px; font-weight: 500; margin-bottom: 10px; }
+p { margin-bottom: 14px; color: var(--text); }
+ul { margin: 0 0 14px 20px; }
+ul li { margin-bottom: 6px; }
+strong { font-weight: 500; }
+
+/* CARDS */
+.card { background: var(--card); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 20px; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.mini-card { background: var(--card); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; }
+.mini-card .label { font-size: 12px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .05em; }
+.mini-card .value { font-size: 22px; font-weight: 500; }
+
+/* BADGES */
+.badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+.badge-u { background: var(--col-u-light); color: var(--col-u); }
+.badge-s { background: var(--col-sigma-light); color: var(--col-sigma); }
+.badge-v { background: var(--col-v-light); color: var(--col-v); }
+
+/* FORMULA BOXES */
+.formula { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 14px 18px; font-family: "Georgia", serif; font-size: 17px; text-align: center; margin-bottom: 16px; letter-spacing: .02em; }
+.formula .u { color: var(--col-u); font-weight: 600; }
+.formula .s { color: var(--col-sigma); font-weight: 600; }
+.formula .v { color: var(--col-v); font-weight: 600; }
+
+/* MATRIX DISPLAY */
+.mat-wrap { display: inline-flex; align-items: center; gap: 6px; font-family: "Georgia", serif; font-size: 14px; vertical-align: middle; }
+.mat { display: inline-grid; border-left: 2px solid var(--border-strong); border-right: 2px solid var(--border-strong); padding: 4px 8px; row-gap: 2px; column-gap: 10px; }
+.mat-bracket { font-size: 28px; color: var(--border-strong); font-weight: 300; }
+
+/* COMPARISON TABLE */
+.cmp-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.cmp-table th, .cmp-table td { padding: 10px 14px; border-bottom: 0.5px solid var(--border); text-align: left; }
+.cmp-table th { font-weight: 500; background: var(--bg); color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+.cmp-table tr:last-child td { border-bottom: none; }
+
+/* QUIZ */
+.quiz-q { background: var(--card); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 16px; }
+.quiz-q p { margin-bottom: 12px; font-weight: 500; }
+.quiz-options { display: flex; flex-direction: column; gap: 8px; }
+.quiz-opt { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-size: 14px; transition: background .12s, border-color .12s; }
+.quiz-opt:hover { background: var(--bg); }
+.quiz-opt.correct { background: #EAF3DE; border-color: #3B6D11; color: #3B6D11; }
+.quiz-opt.wrong { background: #FCEBEB; border-color: #A32D2D; color: #A32D2D; }
+.quiz-opt input { width: 16px; height: 16px; }
+.quiz-feedback { margin-top: 10px; font-size: 13px; color: var(--muted); display: none; padding: 8px 12px; background: var(--bg); border-radius: var(--radius-sm); }
+.quiz-feedback.show { display: block; }
+
+/* STEPPER */
+.stepper { border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 20px; }
+.stepper-header { display: flex; background: var(--bg); border-bottom: 0.5px solid var(--border); }
+.step-tab { flex: 1; padding: 10px 8px; font-size: 12px; text-align: center; cursor: pointer; color: var(--muted); border-right: 0.5px solid var(--border); transition: background .12s, color .12s; }
+.step-tab:last-child { border-right: none; }
+.step-tab.active { background: var(--card); color: var(--col-u); font-weight: 500; }
+.step-body { padding: 20px 24px; }
+.step-panel { display: none; }
+.step-panel.active { display: block; }
+
+/* CANVAS VIZ */
+canvas { display: block; }
+.viz-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; font-size: 13px; color: var(--muted); }
+.viz-controls label { display: flex; align-items: center; gap: 6px; }
+.viz-controls input[type=range] { width: 100px; }
+.viz-controls output { font-weight: 500; color: var(--text); min-width: 36px; }
+
+/* SUBSPACE DIAGRAM */
+.subspace-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0; }
+.subspace-card { border-radius: var(--radius-sm); padding: 14px 16px; border: 0.5px solid transparent; }
+.subspace-card h4 { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+.subspace-card p { font-size: 13px; margin: 0; }
+.sp-row { background: var(--col-row-light); border-color: var(--col-row); }
+.sp-row h4 { color: var(--col-row); }
+.sp-null { background: var(--col-null-light); border-color: var(--col-null); }
+.sp-null h4 { color: var(--col-null); }
+.sp-col { background: var(--col-col-light); border-color: var(--col-col); }
+.sp-col h4 { color: var(--col-col); }
+.sp-left { background: var(--col-left-light); border-color: var(--col-left); }
+.sp-left h4 { color: var(--col-left); }
+
+/* CHECKLIST */
+.checklist { list-style: none; margin: 0; padding: 0; }
+.checklist li { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); font-size: 14px; }
+.checklist li:last-child { border-bottom: none; }
+.checklist li input[type=checkbox] { margin-top: 3px; flex-shrink: 0; width: 16px; height: 16px; }
+.checklist li span { color: var(--text); }
+.checklist li.done span { text-decoration: line-through; color: var(--muted); }
+
+/* PROGRESS */
+.progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-bottom: 24px; }
+.progress-fill { height: 100%; background: var(--col-u); border-radius: 3px; transition: width .3s; }
+
+/* INFO BOX */
+.info-box { border-left: 3px solid; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; padding: 12px 16px; margin-bottom: 16px; font-size: 14px; }
+.info-box.blue { border-color: var(--col-u); background: var(--col-u-light); }
+.info-box.amber { border-color: var(--col-sigma); background: var(--col-sigma-light); }
+.info-box.teal { border-color: var(--col-v); background: var(--col-v-light); }
+.info-box.coral { border-color: var(--col-null); background: var(--col-null-light); }
+.info-box p { margin: 0; }
+
+/* SVG diagrams */
+svg text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+</style>
+</head>
+<body>
+
+<nav class="nav" id="main-nav">
+  <a href="#overview" class="active" onclick="setActive(this)">Overview</a>
+  <a href="#diagonalization" onclick="setActive(this)">Diagonalization</a>
+  <a href="#gram-schmidt" onclick="setActive(this)">Gram–Schmidt</a>
+  <a href="#svd-basics" onclick="setActive(this)">SVD Basics</a>
+  <a href="#svd-geometry" onclick="setActive(this)">Geometry</a>
+  <a href="#subspaces" onclick="setActive(this)">4 Subspaces</a>
+  <a href="#rank-one" onclick="setActive(this)">Rank-1 View</a>
+  <a href="#algorithms" onclick="setActive(this)">Algorithm</a>
+  <a href="#quiz" onclick="setActive(this)">Quiz</a>
+  <a href="#checklist" onclick="setActive(this)">Checklist</a>
+  <div class="timer-pill">
+    <i class="ti ti-clock" aria-hidden="true"></i>
+    <span id="timer-display">2:00:00</span>
+    <button onclick="toggleTimer()" id="timer-btn" aria-label="Start timer"><i class="ti ti-player-play" id="timer-icon"></i></button>
+  </div>
+</nav>
+
+<div class="page">
+  <!-- progress -->
+  <div class="progress-bar" style="margin-top:8px">
+    <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+  </div>
+
+  <!-- ─── OVERVIEW ─── -->
+  <section class="section" id="overview">
+    <h1>SVD & Linear Algebra — Full Revision</h1>
+    <p class="subtitle">2-hour revision covering diagonalization → Gram–Schmidt → SVD → four fundamental subspaces. Work through each section, run the interactive demos, then test yourself in the quiz.</p>
+
+    <div class="card-grid">
+      <div class="mini-card">
+        <div class="label">Topics</div>
+        <div class="value">8 sections</div>
+      </div>
+      <div class="mini-card">
+        <div class="label">Interactive demos</div>
+        <div class="value">6 tools</div>
+      </div>
+      <div class="mini-card">
+        <div class="label">Quiz questions</div>
+        <div class="value">12 questions</div>
+      </div>
+      <div class="mini-card">
+        <div class="label">Suggested time</div>
+        <div class="value">2 hours</div>
+      </div>
+    </div>
+
+    <div class="info-box blue">
+      <p><strong>Color code throughout:</strong> <span class="badge badge-u">U</span> = left singular vectors / column space &nbsp; <span class="badge badge-s">Σ</span> = singular values / scaling &nbsp; <span class="badge badge-v">V</span> = right singular vectors / row space. Every formula, diagram, and demo uses these colors consistently.</p>
+    </div>
+
+    <!-- Big formula -->
+    <div class="card">
+      <h3>The master formula</h3>
+      <div class="formula">
+        <span class="u">A</span> = <span class="u">U</span> <span class="s">Σ</span> <span class="v">V</span><sup>T</sup>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;font-size:13px;">
+        <div style="border-left:3px solid var(--col-u);padding-left:12px;">
+          <div style="color:var(--col-u);font-weight:500;margin-bottom:4px;">U (m×m)</div>
+          Left singular vectors. Columns = ONB for column space + left null space. Rotation in output space.
+        </div>
+        <div style="border-left:3px solid var(--col-sigma);padding-left:12px;">
+          <div style="color:var(--col-sigma);font-weight:500;margin-bottom:4px;">Σ (m×n)</div>
+          Diagonal (rectangle). Entries σ₁≥σ₂≥…≥0. Number of nonzeros = rank(A). Pure scaling.
+        </div>
+        <div style="border-left:3px solid var(--col-v);padding-left:12px;">
+          <div style="color:var(--col-v);font-weight:500;margin-bottom:4px;">V (n×n)</div>
+          Right singular vectors. Columns = ONB for row space + null space. Rotation in input space.
+        </div>
+      </div>
+    </div>
+
+    <!-- Roadmap SVG -->
+    <svg width="100%" viewBox="0 0 900 110" role="img">
+      <title>Concept roadmap from eigendecomposition to SVD</title>
+      <defs><marker id="arr0" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round"/></marker></defs>
+      <!-- boxes -->
+      <rect x="10" y="30" width="140" height="44" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+      <text x="80" y="57" text-anchor="middle" font-size="13" fill="#3C3489" font-weight="500">Eigendecomposition</text>
+      <line x1="150" y1="52" x2="188" y2="52" stroke="#888780" stroke-width="1" marker-end="url(#arr0)"/>
+      <rect x="190" y="30" width="130" height="44" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+      <text x="255" y="57" text-anchor="middle" font-size="13" fill="#3C3489" font-weight="500">Diagonalization</text>
+      <line x1="320" y1="52" x2="358" y2="52" stroke="#888780" stroke-width="1" marker-end="url(#arr0)"/>
+      <rect x="360" y="30" width="130" height="44" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+      <text x="425" y="57" text-anchor="middle" font-size="13" fill="#085041" font-weight="500">Gram–Schmidt</text>
+      <line x1="490" y1="52" x2="528" y2="52" stroke="#888780" stroke-width="1" marker-end="url(#arr0)"/>
+      <rect x="530" y="20" width="140" height="64" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="1.5"/>
+      <text x="600" y="48" text-anchor="middle" font-size="14" fill="#0C447C" font-weight="500">SVD</text>
+      <text x="600" y="66" text-anchor="middle" font-size="11" fill="#185FA5">A = UΣVᵀ</text>
+      <line x1="670" y1="52" x2="708" y2="52" stroke="#888780" stroke-width="1" marker-end="url(#arr0)"/>
+      <rect x="710" y="30" width="170" height="44" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+      <text x="795" y="57" text-anchor="middle" font-size="13" fill="#633806" font-weight="500">4 Fundamental Subspaces</text>
+    </svg>
+  </section>
+
+  <!-- ─── DIAGONALIZATION ─── -->
+  <section class="section" id="diagonalization">
+    <h2>Diagonalization & Eigendecomposition</h2>
+
+    <div class="card">
+      <h3>Core idea</h3>
+      <p>For a square matrix A, if we can find n linearly independent eigenvectors, we can write:</p>
+      <div class="formula">A = <span class="u">P</span> <span class="s">Λ</span> <span class="u">P</span><sup>−1</sup></div>
+      <p>where <strong>P</strong> has eigenvectors as columns and <strong>Λ</strong> is diagonal with eigenvalues.</p>
+      <p style="color:var(--muted);font-size:13px;">This is the same as writing AP = PΛ, which means each column: <strong>Avᵢ = λᵢvᵢ</strong></p>
+    </div>
+
+    <div class="stepper">
+      <div class="stepper-header">
+        <div class="step-tab active" onclick="setStep('diag',0,this)">Is it diagonalizable?</div>
+        <div class="step-tab" onclick="setStep('diag',1,this)">Find eigenvalues</div>
+        <div class="step-tab" onclick="setStep('diag',2,this)">Find eigenvectors</div>
+        <div class="step-tab" onclick="setStep('diag',3,this)">Build P and Λ</div>
+        <div class="step-tab" onclick="setStep('diag',4,this)">Power trick</div>
+      </div>
+      <div class="step-body">
+        <div class="step-panel active" id="diag-0">
+          <h3>Condition for diagonalizability</h3>
+          <p>An n×n matrix is diagonalizable <strong>if and only if</strong> it has n linearly independent eigenvectors.</p>
+          <div class="info-box coral"><p><strong>Key check:</strong> For each eigenvalue, the geometric multiplicity (dim of eigenspace) must equal its arithmetic multiplicity (how many times it's a root of the characteristic polynomial). Symmetric matrices always satisfy this.</p></div>
+          <p><strong>Example — NOT diagonalizable:</strong></p>
+          <div style="font-family:Georgia,serif;font-size:15px;text-align:center;margin:8px 0;">
+            A = [<sup>2  1</sup>/<sub>0  2</sub>] has eigenvalue λ=2 repeated twice, but only ONE eigenvector [1,0]ᵀ
+          </div>
+          <p>Only 1 linearly independent eigenvector → cannot form P with 2 columns → NOT diagonalizable.</p>
+        </div>
+        <div class="step-panel" id="diag-1">
+          <h3>Finding eigenvalues</h3>
+          <p>Solve the characteristic polynomial: <strong>det(A − λI) = 0</strong></p>
+          <div class="info-box amber"><p>For triangular matrices, eigenvalues are just the diagonal entries. Shortcut for 2×2: λ² − tr(A)λ + det(A) = 0</p></div>
+          <p>For upper/lower triangular A = [<sup>a  b</sup>/<sub>0  d</sub>], eigenvalues are directly a and d.</p>
+        </div>
+        <div class="step-panel" id="diag-2">
+          <h3>Finding eigenvectors</h3>
+          <p>For each eigenvalue λᵢ, solve: <strong>(A − λᵢI)x = 0</strong></p>
+          <p>This is just finding the null space of (A − λᵢI). Free variables give you the eigenvectors.</p>
+          <div class="info-box teal"><p><strong>Geometric multiplicity</strong> = number of free variables = number of linearly independent eigenvectors for that λ. This must be ≥ 1 and ≤ arithmetic multiplicity.</p></div>
+        </div>
+        <div class="step-panel" id="diag-3">
+          <h3>Building the decomposition</h3>
+          <p>Arrange eigenvectors as columns of P — the ORDER must match eigenvalues in Λ:</p>
+          <div class="formula">P = [v₁ | v₂ | … | vₙ] &nbsp;&nbsp; Λ = diag(λ₁, λ₂, …, λₙ)</div>
+          <p>Verify: AP = PΛ. Then A = PΛP⁻¹.</p>
+          <div class="info-box blue"><p>For <strong>symmetric matrices</strong>: eigenvectors are orthogonal, so P⁻¹ = Pᵀ. We get A = PΛPᵀ (spectral theorem).</p></div>
+        </div>
+        <div class="step-panel" id="diag-4">
+          <h3>Why diagonalization matters: computing powers</h3>
+          <div class="formula">A<sup>k</sup> = <span class="u">P</span> <span class="s">Λ</span><sup>k</sup> <span class="u">P</span><sup>−1</sup></div>
+          <p>Since Λ is diagonal, Λ<sup>k</sup> just raises each diagonal entry to the power k. This is O(n) work per power instead of O(n³) matrix multiplication.</p>
+          <div class="info-box amber"><p>This is why SVD also makes rectangle matrix powers easy — Σ<sup>k</sup> is trivial to compute.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Similarity — the bridge to SVD</h3>
+      <p>B is <strong>similar</strong> to A if B = QAQ⁻¹ for some invertible Q. Similar matrices represent the <em>same linear transformation</em> in different bases.</p>
+      <p>Key fact: <strong>AB and BA share all nonzero eigenvalues</strong>. This is the bridge that lets us build AᵀA and AAᵀ to find SVD.</p>
+    </div>
+
+    <!-- Interactive eigenvalue demo -->
+    <div class="card">
+      <h3>Interactive: 2×2 eigenvalue demo</h3>
+      <p style="font-size:13px;color:var(--muted)">Adjust the matrix entries. Watch how eigenvalues and eigenvectors change.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
+        <div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+            <div><label style="font-size:12px;color:var(--muted)">a</label><br><input type="number" id="ea" value="3" style="width:100%;padding:6px 8px;border:0.5px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px;" oninput="updateEigen()"></div>
+            <div><label style="font-size:12px;color:var(--muted)">b</label><br><input type="number" id="eb" value="1" style="width:100%;padding:6px 8px;border:0.5px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px;" oninput="updateEigen()"></div>
+            <div><label style="font-size:12px;color:var(--muted)">c</label><br><input type="number" id="ec" value="0" style="width:100%;padding:6px 8px;border:0.5px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px;" oninput="updateEigen()"></div>
+            <div><label style="font-size:12px;color:var(--muted)">d</label><br><input type="number" id="ed" value="1" style="width:100%;padding:6px 8px;border:0.5px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px;" oninput="updateEigen()"></div>
+          </div>
+        </div>
+        <div style="background:var(--bg);border-radius:var(--radius-sm);padding:14px;font-size:13px;" id="eigen-result">
+          Computing…
+        </div>
+      </div>
+      <canvas id="eigenCanvas" width="400" height="200" style="width:100%;max-width:400px;margin-top:12px;border-radius:var(--radius-sm);background:var(--bg);"></canvas>
+    </div>
+  </section>
+
+  <!-- ─── GRAM-SCHMIDT ─── -->
+  <section class="section" id="gram-schmidt">
+    <h2>Gram–Schmidt Orthogonalization</h2>
+
+    <div class="card">
+      <h3>Why orthonormal bases?</h3>
+      <p>If <strong>U = [u₁|u₂|…|uₙ]</strong> is orthonormal and we want coordinates of x in this basis:</p>
+      <div class="formula">αᵢ = <span class="u">uᵢ</span><sup>T</sup>x</div>
+      <p>Just dot products — no matrix inversion! This is why SVD's U and V being orthonormal is so powerful.</p>
+    </div>
+
+    <!-- GS visual stepper -->
+    <div class="stepper">
+      <div class="stepper-header">
+        <div class="step-tab active" onclick="setStep('gs',0,this)">Start</div>
+        <div class="step-tab" onclick="setStep('gs',1,this)">Subtract projection</div>
+        <div class="step-tab" onclick="setStep('gs',2,this)">Normalize</div>
+        <div class="step-tab" onclick="setStep('gs',3,this)">Extend</div>
+      </div>
+      <div class="step-body">
+        <div class="step-panel active" id="gs-0">
+          <p>Given basis {v₁, v₂, …, vₙ}, we want to produce an orthonormal basis {u₁, u₂, …, uₙ}.</p>
+          <p><strong>Start:</strong> u₁ = v₁ / ‖v₁‖ (just normalize the first vector)</p>
+          <canvas id="gsCanvas0" width="300" height="200" style="background:var(--bg);border-radius:8px;display:block;margin:8px auto;"></canvas>
+        </div>
+        <div class="step-panel" id="gs-1">
+          <p>For u₂: take v₂ and subtract the component along u₁:</p>
+          <div class="formula" style="font-size:14px;">u₂ = v₂ − (v₂·u₁/‖u₁‖²) u₁</div>
+          <p>The subtracted piece is the <em>projection</em> of v₂ onto u₁. What remains is perpendicular to u₁.</p>
+          <canvas id="gsCanvas1" width="300" height="200" style="background:var(--bg);border-radius:8px;display:block;margin:8px auto;"></canvas>
+        </div>
+        <div class="step-panel" id="gs-2">
+          <p>After subtracting projections, <strong>normalize</strong>: divide by the length.</p>
+          <div class="formula" style="font-size:14px;">u₂ ← u₂ / ‖u₂‖</div>
+          <div class="info-box teal"><p><strong>Orthonormal check:</strong> uᵢ · uⱼ = 0 for i≠j (orthogonal), and ‖uᵢ‖ = 1 (unit length).</p></div>
+        </div>
+        <div class="step-panel" id="gs-3">
+          <p>For u₃, subtract projections onto ALL previous u's:</p>
+          <div class="formula" style="font-size:13px;">u₃ = v₃ − (v₃·u₁)u₁ − (v₃·u₂)u₂ &nbsp; then normalize</div>
+          <p>General pattern:</p>
+          <div class="formula" style="font-size:13px;">uₖ = vₖ − Σᵢ₌₁ᵏ⁻¹ (vₖ·uᵢ) uᵢ &nbsp; then normalize</div>
+          <div class="info-box amber"><p>This is needed in SVD when Σ has zeros — you find remaining U columns by orthogonalizing the null space of Aᵀ.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive GS demo -->
+    <div class="card">
+      <h3>Interactive Gram–Schmidt demo</h3>
+      <p style="font-size:13px;color:var(--muted)">Drag the sliders to set v₁ and v₂ angles. Watch the orthogonalization process.</p>
+      <canvas id="gsInteractive" width="400" height="300" style="width:100%;max-width:400px;background:var(--bg);border-radius:8px;display:block;margin:0 auto 12px;"></canvas>
+      <div class="viz-controls">
+        <label>v₁ angle: <input type="range" min="0" max="360" value="40" id="gsA1" oninput="drawGS()"> <output id="gsA1out">40°</output></label>
+        <label>v₂ angle: <input type="range" min="0" max="360" value="120" id="gsA2" oninput="drawGS()"> <output id="gsA2out">120°</output></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SVD BASICS ─── -->
+  <section class="section" id="svd-basics">
+    <h2>SVD — Singular Value Decomposition</h2>
+
+    <div class="info-box blue">
+      <p><strong>Unconditional:</strong> SVD works for ANY m×n matrix — no symmetry, no square requirement. This is the key advantage over eigendecomposition.</p>
+    </div>
+
+    <div class="card">
+      <h3>Dimensions at a glance</h3>
+      <div style="display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;padding:12px 0;">
+        <div style="text-align:center;padding:10px 16px;background:var(--col-u-light);border-radius:8px;border:0.5px solid var(--col-u);">
+          <div style="font-size:11px;color:var(--col-u);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">U</div>
+          <div style="font-size:16px;font-weight:500;color:var(--col-u);">m × m</div>
+          <div style="font-size:11px;color:var(--muted);">orthogonal</div>
+        </div>
+        <div style="font-size:20px;color:var(--muted);">×</div>
+        <div style="text-align:center;padding:10px 16px;background:var(--col-sigma-light);border-radius:8px;border:0.5px solid var(--col-sigma);">
+          <div style="font-size:11px;color:var(--col-sigma);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Σ</div>
+          <div style="font-size:16px;font-weight:500;color:var(--col-sigma);">m × n</div>
+          <div style="font-size:11px;color:var(--muted);">diagonal (rectangle)</div>
+        </div>
+        <div style="font-size:20px;color:var(--muted);">×</div>
+        <div style="text-align:center;padding:10px 16px;background:var(--col-v-light);border-radius:8px;border:0.5px solid var(--col-v);">
+          <div style="font-size:11px;color:var(--col-v);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Vᵀ</div>
+          <div style="font-size:16px;font-weight:500;color:var(--col-v);">n × n</div>
+          <div style="font-size:11px;color:var(--muted);">orthogonal</div>
+        </div>
+        <div style="font-size:20px;color:var(--muted);">=</div>
+        <div style="text-align:center;padding:10px 16px;background:var(--bg);border-radius:8px;border:0.5px solid var(--border-strong);">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">A</div>
+          <div style="font-size:16px;font-weight:500;">m × n</div>
+          <div style="font-size:11px;color:var(--muted);">any matrix</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Algorithm stepper -->
+    <div class="stepper">
+      <div class="stepper-header">
+        <div class="step-tab active" onclick="setStep('alg',0,this)">Step 1: Find V</div>
+        <div class="step-tab" onclick="setStep('alg',1,this)">Step 2: Find Σ</div>
+        <div class="step-tab" onclick="setStep('alg',2,this)">Step 3: Find U</div>
+        <div class="step-tab" onclick="setStep('alg',3,this)">Shortcut</div>
+        <div class="step-tab" onclick="setStep('alg',4,this)">Remaining U</div>
+      </div>
+      <div class="step-body">
+        <div class="step-panel active" id="alg-0">
+          <h3>Find V — right singular vectors</h3>
+          <p>Compute <strong>AᵀA</strong> (n×n, always symmetric positive semidefinite). Find its eigenvectors.</p>
+          <div class="formula" style="font-size:14px;">Aᵀ<span class="v">A</span> = <span class="v">V</span> <span class="s">Σ</span>² <span class="v">V</span>ᵀ</div>
+          <p>Columns of <span class="badge badge-v">V</span> = eigenvectors of AᵀA. Since AᵀA is symmetric, these are automatically orthogonal!</p>
+          <div class="info-box teal"><p>AᵀA is always symmetric → eigenvectors always orthogonal → V is automatically an orthogonal matrix.</p></div>
+        </div>
+        <div class="step-panel" id="alg-1">
+          <h3>Find Σ — singular values</h3>
+          <p>From the eigenvalues λᵢ of AᵀA (or AAᵀ), take <strong>positive square roots</strong>:</p>
+          <div class="formula" style="font-size:14px;"><span class="s">σᵢ = √λᵢ</span></div>
+          <p>Always positive! Arrange in decreasing order: σ₁ ≥ σ₂ ≥ … ≥ σᵣ > 0, then zeros.</p>
+          <div class="info-box amber">
+            <p><strong>Key identity:</strong> singular values of A = √(eigenvalues of AᵀA). Rank(A) = number of nonzero σᵢ.</p>
+          </div>
+          <p>Singular values of A⁻¹ = 1/σᵢ (just reciprocals!)</p>
+        </div>
+        <div class="step-panel" id="alg-2">
+          <h3>Find U — left singular vectors</h3>
+          <p>Compute <strong>AAᵀ</strong> (m×m, always symmetric). Find its eigenvectors.</p>
+          <div class="formula" style="font-size:14px;">A<span class="u">Aᵀ</span> = <span class="u">U</span> <span class="s">Σ</span>² <span class="u">U</span>ᵀ</div>
+          <p>Columns of <span class="badge badge-u">U</span> = eigenvectors of AAᵀ.</p>
+          <div class="info-box blue"><p>AᵀA and AAᵀ share the same nonzero eigenvalues (AB and BA theorem). So the nonzero singular values come out the same either way.</p></div>
+        </div>
+        <div class="step-panel" id="alg-3">
+          <h3>Shortcut: compute U from V without AAᵀ</h3>
+          <p>Since Avᵢ = σᵢuᵢ, once you have V and Σ you can get each uᵢ directly:</p>
+          <div class="formula" style="font-size:14px;"><span class="u">uᵢ</span> = (1/σᵢ) A <span class="v">vᵢ</span></div>
+          <p>This avoids computing the full AAᵀ and is the standard computational approach.</p>
+          <div class="info-box teal"><p>Verify: check that uᵢ · uⱼ = 0 for i≠j. They will be orthogonal because AᵀA is symmetric.</p></div>
+        </div>
+        <div class="step-panel" id="alg-4">
+          <h3>Finding remaining U columns (when σᵢ = 0)</h3>
+          <p>You can only use the shortcut for nonzero σᵢ. For the remaining r+1 … m columns of U:</p>
+          <ol style="margin-left:20px;margin-bottom:12px;">
+            <li>Find null space of Aᵀ (solve Aᵀx = 0)</li>
+            <li>Apply Gram–Schmidt to get orthonormal basis</li>
+            <li>These become the remaining U columns</li>
+          </ol>
+          <div class="info-box coral"><p>If λ=0 is repeated for AᵀA, the eigenvectors may not be automatically orthogonal — you MUST apply Gram–Schmidt to get the orthonormal set.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── GEOMETRY ─── -->
+  <section class="section" id="svd-geometry">
+    <h2>Geometry of SVD</h2>
+
+    <div class="card">
+      <h3>Three operations: Vᵀ → Σ → U</h3>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px;">
+        <div style="border-radius:8px;padding:14px;background:var(--col-v-light);border:0.5px solid var(--col-v);">
+          <div style="font-weight:500;color:var(--col-v);margin-bottom:6px;">① Vᵀ — rotate</div>
+          <div style="font-size:13px;">Orthonormal matrix → pure rotation. Preserves lengths and angles. Maps vᵢ → eᵢ (standard basis).</div>
+        </div>
+        <div style="border-radius:8px;padding:14px;background:var(--col-sigma-light);border:0.5px solid var(--col-sigma);">
+          <div style="font-weight:500;color:var(--col-sigma);margin-bottom:6px;">② Σ — stretch</div>
+          <div style="font-size:13px;">Diagonal matrix → pure scaling. Stretches/shrinks each axis by σᵢ. Circle → ellipse.</div>
+        </div>
+        <div style="border-radius:8px;padding:14px;background:var(--col-u-light);border:0.5px solid var(--col-u);">
+          <div style="font-weight:500;color:var(--col-u);margin-bottom:6px;">③ U — rotate</div>
+          <div style="font-size:13px;">Another orthonormal matrix → pure rotation in output space. Orients the stretched ellipse.</div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:var(--muted);">Every matrix = rotate input → stretch → rotate output. The singular values tell you exactly how much stretching happens.</p>
+    </div>
+
+    <!-- Interactive circle→ellipse demo -->
+    <div class="card">
+      <h3>Interactive: circle → ellipse transformation</h3>
+      <p style="font-size:13px;color:var(--muted)">Change σ₁ and σ₂. The unit circle (gray) gets transformed to the ellipse. The singular values are the semi-axes lengths.</p>
+      <canvas id="geoCanvas" width="500" height="300" style="width:100%;max-width:500px;background:var(--bg);border-radius:8px;display:block;margin:0 auto 12px;"></canvas>
+      <div class="viz-controls">
+        <label>σ₁: <input type="range" min="0.2" max="4" step="0.1" value="2.5" id="sig1" oninput="drawGeo()"> <output id="sig1out">2.5</output></label>
+        <label>σ₂: <input type="range" min="0.2" max="4" step="0.1" value="1.2" id="sig2" oninput="drawGeo()"> <output id="sig2out">1.2</output></label>
+        <label>U angle: <input type="range" min="0" max="90" value="30" id="uAngle" oninput="drawGeo()"> <output id="uAngleout">30°</output></label>
+      </div>
+      <div id="geo-info" style="font-size:13px;color:var(--muted);margin-top:8px;text-align:center;"></div>
+    </div>
+
+    <div class="card">
+      <h3>Length bounds after transformation</h3>
+      <p>For any unit vector w, after multiplying by A = UΣVᵀ:</p>
+      <div class="formula" style="font-size:14px;"><span class="s">σₘᵢₙ</span> ≤ ‖Aw‖ ≤ <span class="s">σₘₐₓ</span></div>
+      <p>The smallest singular value gives the minimum stretch, the largest gives the maximum stretch.</p>
+      <ul>
+        <li>U and Vᵀ are orthonormal → length-preserving (no stretching)</li>
+        <li>Only Σ changes lengths — by exactly σᵢ along axis i</li>
+        <li>‖Aw‖ = σ₁ only if w is aligned with v₁ (the first right singular vector)</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>Orthonormal matrices: length and angle preserving</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <h4 style="margin-bottom:8px;font-weight:500;">Length preserving</h4>
+          <div class="formula" style="font-size:13px;">‖Ux‖² = (Ux)ᵀ(Ux) = xᵀUᵀUx = xᵀIx = ‖x‖²</div>
+          <p style="font-size:13px;margin-top:8px;">UᵀU = I → ‖Ux‖ = ‖x‖ always.</p>
+        </div>
+        <div>
+          <h4 style="margin-bottom:8px;font-weight:500;">Angle preserving</h4>
+          <div class="formula" style="font-size:13px;">Ux · Uy = (Ux)ᵀ(Uy) = xᵀUᵀUy = xᵀy = x · y</div>
+          <p style="font-size:13px;margin-top:8px;">Dot products preserved → angles preserved.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SUBSPACES ─── -->
+  <section class="section" id="subspaces">
+    <h2>Four Fundamental Subspaces via SVD</h2>
+
+    <div class="info-box blue">
+      <p>SVD directly reveals all four fundamental subspaces of A. If rank(A) = r, the SVD A = UΣVᵀ gives you all four bases at once.</p>
+    </div>
+
+    <!-- Big subspace diagram -->
+    <svg width="100%" viewBox="0 0 900 360" role="img" style="margin-bottom:16px;">
+      <title>Four fundamental subspaces from SVD</title>
+      <defs>
+        <marker id="arrs" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round"/>
+        </marker>
+      </defs>
+
+      <!-- V space (n-dim) -->
+      <rect x="20" y="30" width="380" height="300" rx="14" fill="#F1EFE8" stroke="#888780" stroke-width="0.5"/>
+      <text x="210" y="58" text-anchor="middle" font-size="15" font-weight="500" fill="#444441">ℝⁿ (input space)</text>
+
+      <!-- Row space -->
+      <rect x="45" y="72" width="155" height="110" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+      <text x="122" y="100" text-anchor="middle" font-size="13" font-weight="500" fill="#3C3489">Row space</text>
+      <text x="122" y="118" text-anchor="middle" font-size="11" fill="#534AB7">v₁, v₂, …, vᵣ</text>
+      <text x="122" y="134" text-anchor="middle" font-size="11" fill="#534AB7">dim = r</text>
+      <text x="122" y="150" text-anchor="middle" font-size="10" fill="#888780">right sing. vectors</text>
+      <text x="122" y="165" text-anchor="middle" font-size="10" fill="#888780">(cols of V, rows 1..r of Vᵀ)</text>
+
+      <!-- Null space -->
+      <rect x="215" y="72" width="165" height="110" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+      <text x="298" y="100" text-anchor="middle" font-size="13" font-weight="500" fill="#712B13">Null space</text>
+      <text x="298" y="118" text-anchor="middle" font-size="11" fill="#993C1D">vᵣ₊₁, …, vₙ</text>
+      <text x="298" y="134" text-anchor="middle" font-size="11" fill="#993C1D">dim = n−r</text>
+      <text x="298" y="150" text-anchor="middle" font-size="10" fill="#888780">right sing. vectors</text>
+      <text x="298" y="165" text-anchor="middle" font-size="10" fill="#888780">(last n−r cols of V)</text>
+
+      <!-- orthogonal label -->
+      <text x="210" y="215" text-anchor="middle" font-size="11" fill="#888780">⊥ orthogonal complement ⊥</text>
+      <line x1="55" y1="194" x2="380" y2="194" stroke="#888780" stroke-width="0.5" stroke-dasharray="4 4"/>
+
+      <!-- U space (m-dim) -->
+      <rect x="500" y="30" width="380" height="300" rx="14" fill="#F1EFE8" stroke="#888780" stroke-width="0.5"/>
+      <text x="690" y="58" text-anchor="middle" font-size="15" font-weight="500" fill="#444441">ℝᵐ (output space)</text>
+
+      <!-- Column space -->
+      <rect x="525" y="72" width="155" height="110" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+      <text x="602" y="100" text-anchor="middle" font-size="13" font-weight="500" fill="#0C447C">Column space</text>
+      <text x="602" y="118" text-anchor="middle" font-size="11" fill="#185FA5">u₁, u₂, …, uᵣ</text>
+      <text x="602" y="134" text-anchor="middle" font-size="11" fill="#185FA5">dim = r</text>
+      <text x="602" y="150" text-anchor="middle" font-size="10" fill="#888780">left sing. vectors</text>
+      <text x="602" y="165" text-anchor="middle" font-size="10" fill="#888780">(first r cols of U)</text>
+
+      <!-- Left null space -->
+      <rect x="698" y="72" width="165" height="110" rx="8" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+      <text x="780" y="100" text-anchor="middle" font-size="13" font-weight="500" fill="#27500A">Left null space</text>
+      <text x="780" y="118" text-anchor="middle" font-size="11" fill="#3B6D11">uᵣ₊₁, …, uₘ</text>
+      <text x="780" y="134" text-anchor="middle" font-size="11" fill="#3B6D11">dim = m−r</text>
+      <text x="780" y="150" text-anchor="middle" font-size="10" fill="#888780">left sing. vectors</text>
+      <text x="780" y="165" text-anchor="middle" font-size="10" fill="#888780">(last m−r cols of U)</text>
+
+      <!-- orthogonal label right -->
+      <text x="690" y="215" text-anchor="middle" font-size="11" fill="#888780">⊥ orthogonal complement ⊥</text>
+      <line x1="535" y1="194" x2="858" y2="194" stroke="#888780" stroke-width="0.5" stroke-dasharray="4 4"/>
+
+      <!-- Arrow A: row → col -->
+      <path d="M 200 240 Q 450 280 600 240" fill="none" stroke="#185FA5" stroke-width="1.5" marker-end="url(#arrs)" stroke-dasharray="6 3"/>
+      <text x="400" y="295" text-anchor="middle" font-size="12" fill="#185FA5">A maps row space → column space</text>
+      <text x="400" y="310" text-anchor="middle" font-size="11" fill="#888780">Avᵢ = σᵢuᵢ  (i = 1…r)</text>
+
+      <!-- Arrow null → 0 -->
+      <path d="M 298 190 L 298 320 L 690 320 L 690 260" fill="none" stroke="#993C1D" stroke-width="1" marker-end="url(#arrs)" stroke-dasharray="4 4"/>
+      <text x="490" y="340" text-anchor="middle" font-size="11" fill="#993C1D">A maps null space → 0</text>
+    </svg>
+
+    <div class="subspace-grid">
+      <div class="subspace-card sp-row">
+        <h4>Row space of A</h4>
+        <p>Span{v₁,…,vᵣ} — first r right singular vectors. dim = rank(A) = r. These are the vectors A maps to nonzero outputs.</p>
+      </div>
+      <div class="subspace-card sp-null">
+        <h4>Null space of A</h4>
+        <p>Span{vᵣ₊₁,…,vₙ} — last n−r right singular vectors. dim = n−r. Avⱼ = 0 for j > r.</p>
+      </div>
+      <div class="subspace-card sp-col">
+        <h4>Column space of A</h4>
+        <p>Span{u₁,…,uᵣ} — first r left singular vectors. dim = rank(A) = r. These are exactly the outputs Av can produce.</p>
+      </div>
+      <div class="subspace-card sp-left">
+        <h4>Left null space of A</h4>
+        <p>Span{uᵣ₊₁,…,uₘ} — last m−r left singular vectors. dim = m−r. These are perpendicular to all outputs.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>The key equations connecting SVD and subspaces</h3>
+      <p>From A = UΣVᵀ, multiply on the right by V (V is orthogonal, so VᵀV = I):</p>
+      <div class="formula" style="font-size:14px;">A<span class="v">V</span> = <span class="u">U</span><span class="s">Σ</span></div>
+      <p>Column by column this gives:</p>
+      <div class="formula" style="font-size:14px;">A<span class="v">vᵢ</span> = <span class="s">σᵢ</span><span class="u">uᵢ</span> for i = 1,…,r &nbsp;|&nbsp; A<span class="v">vⱼ</span> = <strong>0</strong> for j = r+1,…,n</div>
+      <p>This single family of equations defines all four subspaces simultaneously.</p>
+
+      <div class="info-box blue" style="margin-top:12px;">
+        <p><strong>Rank-nullity from SVD:</strong> rank + nullity = n. We have r nonzero σ → rank = r → nullity = n−r. Directly readable from Σ.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Null space proof: rank(A) = rank(AᵀA)</h3>
+      <p>We need to show null(A) = null(AᵀA):</p>
+      <ul>
+        <li><strong>If Ax = 0 →</strong> then AᵀAx = Aᵀ(0) = 0. So null(A) ⊆ null(AᵀA).</li>
+        <li><strong>If AᵀAx = 0 →</strong> multiply xᵀ on left: xᵀAᵀAx = 0 → ‖Ax‖² = 0 → Ax = 0. So null(AᵀA) ⊆ null(A).</li>
+      </ul>
+      <p>Therefore null(A) = null(AᵀA) → same nullity → same rank. ✓</p>
+    </div>
+  </section>
+
+  <!-- ─── RANK-ONE VIEW ─── -->
+  <section class="section" id="rank-one">
+    <h2>SVD as Sum of Rank-1 Matrices</h2>
+
+    <div class="card">
+      <h3>Column × Row decomposition</h3>
+      <p>Instead of row × column (the usual way), we can multiply <em>column × row</em> to get a rank-1 matrix. SVD makes this beautiful:</p>
+      <div class="formula">A = <span class="s">σ₁</span><span class="u">u₁</span><span class="v">v₁</span>ᵀ + <span class="s">σ₂</span><span class="u">u₂</span><span class="v">v₂</span>ᵀ + … + <span class="s">σᵣ</span><span class="u">uᵣ</span><span class="v">vᵣ</span>ᵀ</div>
+      <p>Each term <span class="s">σᵢ</span><span class="u">uᵢ</span><span class="v">vᵢ</span>ᵀ is a <strong>rank-1 matrix</strong>. A is the sum of r such matrices.</p>
+    </div>
+
+    <!-- Low-rank approximation interactive -->
+    <div class="card">
+      <h3>Interactive: low-rank approximation</h3>
+      <p style="font-size:13px;color:var(--muted)">A random 8×8 matrix is approximated using k rank-1 terms. See how well the approximation captures the original with fewer terms.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;text-align:center;">Original A (rank 8)</div>
+          <canvas id="origMat" width="160" height="160" style="width:100%;border-radius:6px;"></canvas>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;text-align:center;" id="approxLabel">Approximation (k=1)</div>
+          <canvas id="approxMat" width="160" height="160" style="width:100%;border-radius:6px;"></canvas>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;text-align:center;">Error (residual)</div>
+          <canvas id="errorMat" width="160" height="160" style="width:100%;border-radius:6px;"></canvas>
+        </div>
+      </div>
+      <div class="viz-controls">
+        <label>k (rank): <input type="range" min="1" max="8" step="1" value="1" id="rankK" oninput="drawLowRank()"> <output id="rankKout">1</output></label>
+        <span id="energy-label" style="color:var(--col-sigma);font-weight:500;"></span>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin-top:8px;">Energy captured = Σᵢ₌₁ᵏ σᵢ² / Σⱼ σⱼ². Drop small σᵢ → compress data with minimal loss.</p>
+    </div>
+
+    <div class="card">
+      <h3>Applications of rank-1 decomposition</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div style="background:var(--bg);border-radius:8px;padding:14px;">
+          <h4 style="font-size:14px;font-weight:500;margin-bottom:6px;"><i class="ti ti-photo" aria-hidden="true" style="margin-right:4px;"></i>Image compression</h4>
+          <p style="font-size:13px;margin:0;">Keep top-k singular values → approximate the image. Storage: k(m+n+1) numbers instead of mn.</p>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:14px;">
+          <h4 style="font-size:14px;font-weight:500;margin-bottom:6px;"><i class="ti ti-chart-dots" aria-hidden="true" style="margin-right:4px;"></i>PCA / Dimensionality reduction</h4>
+          <p style="font-size:13px;margin:0;">Top-k right singular vectors = principal components. Project data onto them to reduce dimensions.</p>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:14px;">
+          <h4 style="font-size:14px;font-weight:500;margin-bottom:6px;"><i class="ti ti-calculator" aria-hidden="true" style="margin-right:4px;"></i>Condition number</h4>
+          <p style="font-size:13px;margin:0;">κ(A) = σₘₐₓ/σₘᵢₙ. Large condition number → near-singular → numerically unstable.</p>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:14px;">
+          <h4 style="font-size:14px;font-weight:500;margin-bottom:6px;"><i class="ti ti-star" aria-hidden="true" style="margin-right:4px;"></i>Best rank-k approximation</h4>
+          <p style="font-size:13px;margin:0;">Eckart–Young theorem: the truncated SVD gives the best rank-k approximation in both 2-norm and Frobenius norm.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── ALGORITHM SUMMARY ─── -->
+  <section class="section" id="algorithms">
+    <h2>Complete Algorithm Reference</h2>
+
+    <div class="card">
+      <h3>SVD vs. Eigendecomposition — side-by-side</h3>
+      <table class="cmp-table">
+        <thead>
+          <tr><th>Property</th><th>Eigendecomposition A = PΛP⁻¹</th><th>SVD A = UΣVᵀ</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Matrix type</td><td>Square only</td><td>Any m×n</td></tr>
+          <tr><td>Diagonalizing matrices</td><td>P, P⁻¹ (same, possibly complex)</td><td>U, Vᵀ (different, always real &amp; orthogonal)</td></tr>
+          <tr><td>Middle matrix</td><td>Λ diagonal (eigenvalues, may be neg/complex)</td><td>Σ diagonal (singular values, always ≥ 0)</td></tr>
+          <tr><td>P/U orthogonal?</td><td>Only if A symmetric</td><td>Always</td></tr>
+          <tr><td>Unique?</td><td>Not always</td><td>Σ unique; U,V unique up to signs/multiplicity</td></tr>
+          <tr><td>Symmetric A</td><td>A = QΛQᵀ (spectral theorem)</td><td>SVD = eigendecomposition (σᵢ = |λᵢ|)</td></tr>
+          <tr><td>Relationship of values</td><td>Eigenvalues of A</td><td>σᵢ = √λᵢ(AᵀA)</td></tr>
+          <tr><td>Rank</td><td># nonzero eigenvalues (symmetric only)</td><td># nonzero singular values (always)</td></tr>
+          <tr><td>Reveals subspaces?</td><td>Partially</td><td>All four fundamental subspaces</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>True / False — common exam traps</h3>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;background:var(--bg);border-radius:8px;">
+          <span style="flex-shrink:0;background:#FCEBEB;color:#A32D2D;border-radius:20px;padding:2px 8px;font-size:12px;font-weight:500;">FALSE</span>
+          <div style="font-size:14px;">"Singular values of A² = (singular values of A)²"
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Counterexample: A = [[0,1],[0,0]], σ(A)={1,0} but A²=0, σ(A²)={0,0}.</div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;background:var(--bg);border-radius:8px;">
+          <span style="flex-shrink:0;background:#FCEBEB;color:#A32D2D;border-radius:20px;padding:2px 8px;font-size:12px;font-weight:500;">FALSE</span>
+          <div style="font-size:14px;">"For square A, singular values = |eigenvalues|"
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Same counterexample: eigenvalues of [[0,1],[0,0]] are both 0, but singular value is 1.</div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;background:var(--bg);border-radius:8px;">
+          <span style="flex-shrink:0;background:#FCEBEB;color:#A32D2D;border-radius:20px;padding:2px 8px;font-size:12px;font-weight:500;">FALSE</span>
+          <div style="font-size:14px;">"Rank = number of nonzero eigenvalues (for any matrix)"
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">True only for symmetric matrices. For general matrices use SVD (nonzero singular values).</div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;background:var(--bg);border-radius:8px;">
+          <span style="flex-shrink:0;background:#EAF3DE;color:#3B6D11;border-radius:20px;padding:2px 8px;font-size:12px;font-weight:500;">TRUE</span>
+          <div style="font-size:14px;">"Every real matrix has an SVD"
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Unconditional — no conditions on A.</div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;background:var(--bg);border-radius:8px;">
+          <span style="flex-shrink:0;background:#EAF3DE;color:#3B6D11;border-radius:20px;padding:2px 8px;font-size:12px;font-weight:500;">TRUE</span>
+          <div style="font-size:14px;">"Singular values of Q are all 1 (Q orthogonal)"
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Orthonormal matrix doesn't scale → all σᵢ = 1.</div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;background:var(--bg);border-radius:8px;">
+          <span style="flex-shrink:0;background:#EAF3DE;color:#3B6D11;border-radius:20px;padding:2px 8px;font-size:12px;font-weight:500;">TRUE</span>
+          <div style="font-size:14px;">"Singular values of A⁻¹ = 1/σᵢ"
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">If A = UΣVᵀ then A⁻¹ = VΣ⁻¹Uᵀ, so singular values are 1/σᵢ.</div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;background:var(--bg);border-radius:8px;">
+          <span style="flex-shrink:0;background:#EAF3DE;color:#3B6D11;border-radius:20px;padding:2px 8px;font-size:12px;font-weight:500;">TRUE</span>
+          <div style="font-size:14px;">"If B similar to A and A diagonalizable → B diagonalizable"
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Similarity is transitive. B = QAQ⁻¹ = Q(PΛP⁻¹)Q⁻¹ = (QP)Λ(QP)⁻¹.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Key formulas cheatsheet</h3>
+      <table class="cmp-table">
+        <thead><tr><th>Formula</th><th>What it means</th></tr></thead>
+        <tbody>
+          <tr><td style="font-family:Georgia,serif;">A = UΣVᵀ</td><td>SVD decomposition</td></tr>
+          <tr><td style="font-family:Georgia,serif;">AᵀA = VΣ²Vᵀ</td><td>Eigendecomp of AᵀA → gives V and σ²</td></tr>
+          <tr><td style="font-family:Georgia,serif;">AAᵀ = UΣ²Uᵀ</td><td>Eigendecomp of AAᵀ → gives U and σ²</td></tr>
+          <tr><td style="font-family:Georgia,serif;">uᵢ = (1/σᵢ)Avᵢ</td><td>Shortcut to find U without computing AAᵀ</td></tr>
+          <tr><td style="font-family:Georgia,serif;">rank(A) = #{σᵢ > 0}</td><td>Rank = number of nonzero singular values</td></tr>
+          <tr><td style="font-family:Georgia,serif;">det(A) = ±∏σᵢ</td><td>Determinant = product of singular values (±1)</td></tr>
+          <tr><td style="font-family:Georgia,serif;">‖A‖₂ = σ₁</td><td>Matrix 2-norm = largest singular value</td></tr>
+          <tr><td style="font-family:Georgia,serif;">κ(A) = σ₁/σₙ</td><td>Condition number</td></tr>
+          <tr><td style="font-family:Georgia,serif;">‖A‖_F = √(Σσᵢ²)</td><td>Frobenius norm = √(sum of squared singular values)</td></tr>
+          <tr><td style="font-family:Georgia,serif;">Σᵢσᵢ² = trace(AᵀA)</td><td>Sum of squared singular values = trace of AᵀA</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─── QUIZ ─── -->
+  <section class="section" id="quiz">
+    <h2>Quiz — test yourself</h2>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:20px;">Click an option to reveal the answer. Each question is based on the lecture material.</p>
+
+    <!-- Q1 -->
+    <div class="quiz-q">
+      <p>Q1. Matrix A is 3×5 with rank 2. What is the dimension of its null space?</p>
+      <div class="quiz-options">
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q1"> 2</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'correct')"><input type="radio" name="q1"> 3</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q1"> 1</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q1"> 5</label>
+      </div>
+      <div class="quiz-feedback">Null space of A is in ℝ⁵ (the input space). By rank-nullity: nullity = n − rank = 5 − 2 = 3.</div>
+    </div>
+
+    <!-- Q2 -->
+    <div class="quiz-q">
+      <p>Q2. Given SVD A = UΣVᵀ, which vectors form a basis for the column space of A?</p>
+      <div class="quiz-options">
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q2"> Last r columns of V</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'correct')"><input type="radio" name="q2"> First r columns of U</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q2"> All columns of U</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q2"> First r columns of V</label>
+      </div>
+      <div class="quiz-feedback">Column space = span of left singular vectors u₁,…,uᵣ = first r columns of U. These satisfy Avᵢ = σᵢuᵢ, so they ARE in the column space.</div>
+    </div>
+
+    <!-- Q3 -->
+    <div class="quiz-q">
+      <p>Q3. An orthonormal matrix Q has all singular values equal to…</p>
+      <div class="quiz-options">
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q3"> 0</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q3"> det(Q)</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'correct')"><input type="radio" name="q3"> 1</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q3"> Depends on Q</label>
+      </div>
+      <div class="quiz-feedback">Q is orthonormal → QᵀQ = I → eigenvalues of QᵀQ are all 1 → singular values = √1 = 1. Geometrically: orthonormal matrices only rotate, never stretch.</div>
+    </div>
+
+    <!-- Q4 -->
+    <div class="quiz-q">
+      <p>Q4. For the Gram–Schmidt process, what does subtracting the projection accomplish?</p>
+      <div class="quiz-options">
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q4"> It normalizes the vector to unit length</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'correct')"><input type="radio" name="q4"> It removes the component parallel to already-chosen vectors, leaving a perpendicular part</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q4"> It computes eigenvalues of the Gram matrix</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q4"> It finds the null space</label>
+      </div>
+      <div class="quiz-feedback">After subtracting proj_{u₁}(v₂), what remains is perpendicular to u₁. The subtracted piece was the "shadow" of v₂ along u₁. Normalizing afterwards gives unit length.</div>
+    </div>
+
+    <!-- Q5 -->
+    <div class="quiz-q">
+      <p>Q5. A is 4×6 with singular values 5, 3, 0, 0. What is rank(A)?</p>
+      <div class="quiz-options">
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q5"> 4</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'correct')"><input type="radio" name="q5"> 2</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q5"> 6</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q5"> 3</label>
+      </div>
+      <div class="quiz-feedback">Rank = number of nonzero singular values = 2 (σ₁=5 and σ₂=3). The two zeros mean nullity = 4.</div>
+    </div>
+
+    <!-- Q6 -->
+    <div class="quiz-q">
+      <p>Q6. Why do we take the POSITIVE square root when computing σᵢ = √λᵢ from eigenvalues of AᵀA?</p>
+      <div class="quiz-options">
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q6"> Eigenvalues of AᵀA can be negative</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'correct')"><input type="radio" name="q6"> Singular values represent lengths/scaling factors, which are inherently non-negative</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q6"> Taking negative root changes U</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q6"> Convention only, negative also works</label>
+      </div>
+      <div class="quiz-feedback">Singular values represent how much A stretches vectors. Stretching factors are non-negative by definition. Also, AᵀA is positive semidefinite → eigenvalues ≥ 0 → both roots exist, but we pick positive.</div>
+    </div>
+
+    <!-- Q7 -->
+    <div class="quiz-q">
+      <p>Q7. The shortcut formula uᵢ = (1/σᵢ)Avᵢ fails for which i?</p>
+      <div class="quiz-options">
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q7"> i = 1 (the largest singular value)</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'correct')"><input type="radio" name="q7"> i where σᵢ = 0 (division by zero)</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q7"> All i where m > n</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q7"> Never fails</label>
+      </div>
+      <div class="quiz-feedback">For zero singular values, 1/σᵢ is undefined. The corresponding U columns must be found via the null space of Aᵀ (then apply Gram–Schmidt if needed).</div>
+    </div>
+
+    <!-- Q8 -->
+    <div class="quiz-q">
+      <p>Q8. A is diagonalizable with eigenvalues 2, 2, 3. We know λ=2 is repeated. What MORE do we need to check?</p>
+      <div class="quiz-options">
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q8"> Nothing, repeated eigenvalues always diagonalize</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'correct')"><input type="radio" name="q8"> That we can find 2 linearly independent eigenvectors for λ=2 (geometric multiplicity = 2)</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q8"> That the matrix is symmetric</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q8"> That eigenvalue 3 has only 1 eigenvector</label>
+      </div>
+      <div class="quiz-feedback">Arithmetic multiplicity of λ=2 is 2. For diagonalizability, geometric multiplicity must also be 2 (i.e., dim of null space of A−2I must be 2). If it's only 1, the matrix is NOT diagonalizable.</div>
+    </div>
+
+    <!-- Q9 -->
+    <div class="quiz-q">
+      <p>Q9. SVD writes A = Σᵢ σᵢuᵢvᵢᵀ. Each term σᵢuᵢvᵢᵀ has rank…</p>
+      <div class="quiz-options">
+        <label class="quiz-opt" onclick="checkQuiz(this,'correct')"><input type="radio" name="q9"> 1</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q9"> r (overall rank of A)</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q9"> i</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q9"> min(m,n)</label>
+      </div>
+      <div class="quiz-feedback">uᵢvᵢᵀ is a column vector times a row vector = outer product. This ALWAYS has rank 1 (one nonzero singular value). A is expressed as the sum of r rank-1 matrices.</div>
+    </div>
+
+    <!-- Q10 -->
+    <div class="quiz-q">
+      <p>Q10. For a symmetric matrix A, how do SVD and eigendecomposition relate?</p>
+      <div class="quiz-options">
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q10"> They are completely different</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'correct')"><input type="radio" name="q10"> They are the same! U = V = Q (eigenvectors), σᵢ = |λᵢ|</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q10"> SVD doesn't apply to symmetric matrices</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q10"> Only the singular values match</label>
+      </div>
+      <div class="quiz-feedback">For symmetric A = QΛQᵀ (spectral theorem), the eigenvectors form both U and V. Singular values = |λᵢ| (absolute values of eigenvalues). Signs of negative eigenvalues are absorbed into U.</div>
+    </div>
+
+    <!-- Q11 -->
+    <div class="quiz-q">
+      <p>Q11. Sum of squares of all singular values of A equals…</p>
+      <div class="quiz-options">
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q11"> det(A)</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q11"> trace(A)</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'correct')"><input type="radio" name="q11"> trace(AᵀA) = ‖A‖_F²</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q11"> rank(A)²</label>
+      </div>
+      <div class="quiz-feedback">Σσᵢ² = eigenvalues of AᵀA summed = trace(AᵀA). Also equals the Frobenius norm squared: ‖A‖_F² = Σᵢⱼ aᵢⱼ². This was the GATE 2024 question!</div>
+    </div>
+
+    <!-- Q12 -->
+    <div class="quiz-q">
+      <p>Q12. Which of these correctly describes what the Gram–Schmidt procedure converts any basis into?</p>
+      <div class="quiz-options">
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q12"> An orthogonal (but not orthonormal) basis</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'correct')"><input type="radio" name="q12"> An orthonormal basis (orthogonal + unit length vectors)</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q12"> The eigenvectors of the Gram matrix</label>
+        <label class="quiz-opt" onclick="checkQuiz(this,'wrong')"><input type="radio" name="q12"> The standard basis</label>
+      </div>
+      <div class="quiz-feedback">Gram–Schmidt produces orthonormal vectors: first subtract projections (→ orthogonal), then divide by length (→ unit length → orthonormal). This is how SVD's U and V are built.</div>
+    </div>
+
+  </section>
+
+  <!-- ─── CHECKLIST ─── -->
+  <section class="section" id="checklist">
+    <h2>2-Hour Study Checklist</h2>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:20px;">Tick each item as you complete it. Progress is saved in this session.</p>
+
+    <div class="card">
+      <h3 style="margin-bottom:12px;">Hour 1 — Core Theory (0–60 min)</h3>
+      <ul class="checklist" id="checklist-1">
+        <li><input type="checkbox" onchange="updateProgress()"><span>Understand what diagonalizability means and when it fails</span></li>
+        <li><input type="checkbox" onchange="updateProgress()"><span>Practice finding eigenvalues of a 3×3 upper-triangular matrix</span></li>
+        <li><input type="checkbox" onchange="updateProgress()"><span>Check AM vs GM for repeated eigenvalues</span></li>
+        <li><input type="checkbox" onchange="updateProgress()"><span>Prove/understand why rank(A) = rank(AᵀA)</span></li>
+        <li><input type="checkbox" onchange="updateProgress()"><span>Write down the Gram–Schmidt formula from memory</span></li>
+        <li><input type="checkbox" onchange="updateProgress()"><span>Understand WHY orthonormal bases make coordinate finding easy</span></li>
+        <li><input type="checkbox" onchange="updateProgress()"><span>Know the 3-step SVD algorithm: AᵀA → V → σ → U</span></li>
+        <li><input type="checkbox" onchange="updateProgress()"><span>Verify: AᵀA is always symmetric positive semidefinite</span></li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:12px;">Hour 2 — Subspaces, Geometry & Practice (60–120 min)</h3>
+      <ul class="checklist" id="checklist-2">
+        <li><input type="checkbox" onchange="updateProgress()"><span>Draw the four-subspace diagram from memory</span></li>
+        <li><input type="checkbox" onchange="updateProgress()"><span>State which columns of U give column space vs left null space</span></li>
+        <li><input type="checkbox" onchange="updateProgress()"><span>State which columns of V give row space vs null space</span></li>
+        <li><input type="checkbox" onchange="updateProgress()"><span>Explain geometrically: Vᵀ rotates, Σ stretches, U rotates</span></li>
+        <li><input type="checkbox" onchange="updateProgress()"><span>Write A as sum of rank-1 matrices (the outer product form)</span></li>
+        <li><input type="checkbox" onchange="updateProgress()"><span>Know: rank = #{nonzero σᵢ}, Frobenius norm = √(Σσᵢ²)</span></li>
+        <li><input type="checkbox" onchange="updateProgress()"><span>Complete all 12 quiz questions above</span></li>
+        <li><input type="checkbox" onchange="updateProgress()"><span>Work through a full SVD example by hand (compute AᵀA, eigenvectors, σ, U shortcut)</span></li>
+        <li><input type="checkbox" onchange="updateProgress()"><span>Know the T/F traps: singular values ≠ |eigenvalues| in general</span></li>
+        <li><input type="checkbox" onchange="updateProgress()"><span>Can state Eckart-Young theorem and what "best rank-k approximation" means</span></li>
+      </ul>
+    </div>
+
+    <div style="text-align:center;padding:20px;background:var(--bg);border-radius:var(--radius);margin-top:8px;">
+      <div style="font-size:28px;font-weight:500;" id="final-progress">0 / 18</div>
+      <div style="font-size:14px;color:var(--muted);margin-top:4px;">items completed</div>
+    </div>
+  </section>
+
+</div><!-- end page -->
+
+<script>
+// ──────── TIMER ────────
+let timerSeconds = 7200, timerRunning = false, timerInterval;
+function updateTimerDisplay() {
+  const h = Math.floor(timerSeconds/3600);
+  const m = Math.floor((timerSeconds%3600)/60);
+  const s = timerSeconds%60;
+  document.getElementById('timer-display').textContent =
+    String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+function toggleTimer() {
+  timerRunning = !timerRunning;
+  const icon = document.getElementById('timer-icon');
+  if (timerRunning) {
+    icon.className = 'ti ti-player-pause';
+    timerInterval = setInterval(()=>{ timerSeconds = Math.max(0,timerSeconds-1); updateTimerDisplay(); if(timerSeconds===0){clearInterval(timerInterval);timerRunning=false;} },1000);
+  } else {
+    icon.className = 'ti ti-player-play';
+    clearInterval(timerInterval);
+  }
+}
+
+// ──────── NAV ────────
+function setActive(el) { document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('active')); el.classList.add('active'); }
+
+// ──────── STEPPERS ────────
+const stepData = {};
+function setStep(id, idx, tabEl) {
+  const panels = document.querySelectorAll('[id^="'+id+'-"]');
+  panels.forEach((p,i)=>p.classList.toggle('active',i===idx));
+  const tabs = tabEl.parentElement.querySelectorAll('.step-tab');
+  tabs.forEach((t,i)=>t.classList.toggle('active',i===idx));
+  if (id==='gs') drawGSStatic(idx);
+}
+
+// ──────── QUIZ ────────
+function checkQuiz(el, verdict) {
+  const q = el.closest('.quiz-q');
+  q.querySelectorAll('.quiz-opt').forEach(o => o.classList.remove('correct','wrong'));
+  el.classList.add(verdict);
+  const fb = q.querySelector('.quiz-feedback');
+  fb.classList.add('show');
+}
+
+// ──────── PROGRESS ────────
+function updateProgress() {
+  const boxes = document.querySelectorAll('.checklist input[type=checkbox]');
+  let done = 0;
+  boxes.forEach(b=>{ if(b.checked){done++;b.closest('li').classList.add('done');}else{b.closest('li').classList.remove('done');}});
+  const pct = Math.round(done/boxes.length*100);
+  document.getElementById('progress-fill').style.width = pct+'%';
+  document.getElementById('final-progress').textContent = done+' / '+boxes.length;
+}
+
+// ──────── EIGENVECTOR DEMO ────────
+function updateEigen() {
+  const a = parseFloat(document.getElementById('ea').value)||0;
+  const b = parseFloat(document.getElementById('eb').value)||0;
+  const c = parseFloat(document.getElementById('ec').value)||0;
+  const d = parseFloat(document.getElementById('ed').value)||0;
+  const tr = a+d, det = a*d-b*c;
+  const disc = tr*tr - 4*det;
+  const res = document.getElementById('eigen-result');
+  if (disc < 0) {
+    res.innerHTML = '<span style="color:var(--muted)">Complex eigenvalues<br>λ = ('+tr.toFixed(2)+'±'+Math.sqrt(-disc).toFixed(2)+'i)/2<br>No real eigenvectors</span>';
+  } else {
+    const l1 = (tr+Math.sqrt(disc))/2, l2 = (tr-Math.sqrt(disc))/2;
+    let v1txt='',v2txt='';
+    if (Math.abs(c)>1e-9) { v1txt='['+((l1-d)/c).toFixed(2)+', 1]'; v2txt='['+((l2-d)/c).toFixed(2)+', 1]'; }
+    else if (Math.abs(b)>1e-9) { v1txt='[1, '+((l1-a)/b).toFixed(2)+']'; v2txt='[1, '+((l2-a)/b).toFixed(2)+']'; }
+    else { v1txt='[1, 0] (approx)'; v2txt='[0, 1] (approx)'; }
+    res.innerHTML = '<b style="color:var(--col-u)">λ₁ = '+l1.toFixed(3)+'</b><br>Eigenvector: '+v1txt+'<br><br><b style="color:var(--col-v)">λ₂ = '+l2.toFixed(3)+'</b><br>Eigenvector: '+v2txt+'<br><br><span style="color:var(--muted);font-size:12px">tr='+tr.toFixed(2)+', det='+det.toFixed(2)+'<br>Diagonalizable: '+(Math.abs(disc)>1e-9||Math.abs(l1-l2)<1e-9?'Check eigenvectors':'Yes')+'</span>';
+  }
+  drawEigenCanvas(a,b,c,d);
+}
+
+function drawEigenCanvas(a,b,c,d) {
+  const canvas = document.getElementById('eigenCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+  const cx=W/2, cy=H/2, scale=60;
+  ctx.strokeStyle = 'rgba(128,128,120,0.3)'; ctx.lineWidth=0.5;
+  ctx.beginPath(); ctx.moveTo(0,cy); ctx.lineTo(W,cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx,0); ctx.lineTo(cx,H); ctx.stroke();
+
+  const tr=a+d, det2=a*d-b*c, disc=tr*tr-4*det2;
+  if(disc>=0) {
+    const l1=(tr+Math.sqrt(disc))/2, l2=(tr-Math.sqrt(disc))/2;
+    [[l1,'#185FA5'],[l2,'#0F6E56']].forEach(([lv,col],idx)=>{
+      let vx,vy;
+      if(Math.abs(c)>1e-9){vx=(lv-d)/c;vy=1;}
+      else if(Math.abs(b)>1e-9){vx=1;vy=(lv-a)/b;}
+      else{vx=idx===0?1:0;vy=idx===0?0:1;}
+      const len=Math.sqrt(vx*vx+vy*vy);
+      vx/=len;vy/=len;
+      ctx.strokeStyle=col; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(cx,cy);
+      ctx.lineTo(cx+vx*scale*2, cy-vy*scale*2); ctx.stroke();
+      // draw transformed vector
+      const tx=a*vx+b*vy, ty=c*vx+d*vy;
+      const tlen=Math.sqrt(tx*tx+ty*ty);
+      ctx.strokeStyle=col; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+      ctx.beginPath(); ctx.moveTo(cx,cy);
+      ctx.lineTo(cx+tx/tlen*scale*2*Math.min(Math.abs(lv),3), cy-ty/tlen*scale*2*Math.min(Math.abs(lv),3));
+      ctx.stroke(); ctx.setLineDash([]);
+    });
+  }
+}
+
+// ──────── GRAM-SCHMIDT STATIC ────────
+function drawGSStatic(step) {
+  const ids = ['gsCanvas0','gsCanvas1',null,null];
+  if(!ids[step]) return;
+  const canvas = document.getElementById(ids[step]);
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height, cx=W/2, cy=H/2, sc=70;
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle='rgba(128,128,120,0.2)';ctx.lineWidth=0.5;
+  ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(W,cy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,H);ctx.stroke();
+  if(step===0){
+    drawArrow(ctx,cx,cy,cx+sc*0.6,cy-sc,2,'#534AB7');
+    drawArrow(ctx,cx,cy,cx+sc,cy-sc*0.3,2,'#993C1D');
+    ctx.fillStyle='#534AB7';ctx.font='13px sans-serif';ctx.fillText('v₁',cx+sc*0.6+4,cy-sc-4);
+    ctx.fillStyle='#993C1D';ctx.fillText('v₂',cx+sc+4,cy-sc*0.3-4);
+  }
+  if(step===1){
+    const v1x=0.6,v1y=-1,v2x=1,v2y=-0.3;
+    const dot=(v2x*v1x+v2y*v1y)/(v1x*v1x+v1y*v1y);
+    const px=dot*v1x,py=dot*v1y;
+    drawArrow(ctx,cx,cy,cx+v1x*sc,cy+v1y*sc,2,'#534AB7');
+    drawArrow(ctx,cx,cy,cx+v2x*sc,cy+v2y*sc,2,'#993C1D');
+    drawArrow(ctx,cx,cy,cx+px*sc,cy+py*sc,1.5,'#888780');
+    const u2x=v2x-px, u2y=v2y-py;
+    drawArrow(ctx,cx,cy,cx+u2x*sc,cy+u2y*sc,2.5,'#0F6E56');
+    ctx.fillStyle='#888780';ctx.font='12px sans-serif';ctx.fillText('proj',cx+px*sc/2+4,cy+py*sc/2);
+    ctx.fillStyle='#0F6E56';ctx.fillText('u₂',cx+u2x*sc+4,cy+u2y*sc-4);
+  }
+}
+function drawArrow(ctx,x1,y1,x2,y2,lw,col){
+  ctx.strokeStyle=col;ctx.fillStyle=col;ctx.lineWidth=lw;
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  const ang=Math.atan2(y2-y1,x2-x1);
+  ctx.beginPath();ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-8*Math.cos(ang-0.4),y2-8*Math.sin(ang-0.4));
+  ctx.lineTo(x2-8*Math.cos(ang+0.4),y2-8*Math.sin(ang+0.4));
+  ctx.closePath();ctx.fill();
+}
+
+// ──────── GS INTERACTIVE ────────
+function drawGS() {
+  const a1=parseFloat(document.getElementById('gsA1').value);
+  const a2=parseFloat(document.getElementById('gsA2').value);
+  document.getElementById('gsA1out').textContent=a1+'°';
+  document.getElementById('gsA2out').textContent=a2+'°';
+  const canvas=document.getElementById('gsInteractive');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height,cx=W/2,cy=H/2,sc=100;
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle='rgba(128,128,120,0.15)';ctx.lineWidth=0.5;
+  ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(W,cy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,H);ctx.stroke();
+  const r1=a1*Math.PI/180, r2=a2*Math.PI/180;
+  const v1x=Math.cos(r1),v1y=-Math.sin(r1);
+  const v2x=Math.cos(r2),v2y=-Math.sin(r2);
+  const dot=v2x*v1x+v2y*v1y;
+  const px=dot*v1x,py=dot*v1y;
+  let u2x=v2x-px,u2y=v2y-py;
+  const u2len=Math.sqrt(u2x*u2x+u2y*u2y);
+  if(u2len>0.01){u2x/=u2len;u2y/=u2len;}
+
+  // projection dashed
+  ctx.strokeStyle='rgba(128,128,120,0.5)';ctx.lineWidth=1;ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(cx+px*sc,cy+py*sc);ctx.lineTo(cx+v2x*sc,cy+v2y*sc);ctx.stroke();
+  ctx.setLineDash([]);
+
+  drawArrow(ctx,cx,cy,cx+v1x*sc,cy+v1y*sc,2.5,'#534AB7');
+  drawArrow(ctx,cx,cy,cx+v2x*sc,cy+v2y*sc,2,'#993C1D');
+  if(u2len>0.01) drawArrow(ctx,cx,cy,cx+u2x*sc,cy+u2y*sc,2.5,'#0F6E56');
+
+  ctx.font='13px sans-serif';
+  ctx.fillStyle='#534AB7';ctx.fillText('v₁ = u₁',cx+v1x*sc+5,cy+v1y*sc);
+  ctx.fillStyle='#993C1D';ctx.fillText('v₂',cx+v2x*sc+5,cy+v2y*sc);
+  if(u2len>0.01){ctx.fillStyle='#0F6E56';ctx.fillText('u₂ ⊥ u₁',cx+u2x*sc+5,cy+u2y*sc);}
+  else{ctx.fillStyle='#993C1D';ctx.fillText('⚠ parallel!',cx+150,cy-20);}
+
+  ctx.fillStyle='rgba(128,128,120,0.5)';ctx.font='11px sans-serif';
+  ctx.fillText('dot(v₁,u₂) ≈ '+Math.abs(v1x*u2x+v1y*u2y).toFixed(3),10,H-10);
+}
+
+// ──────── GEOMETRY ────────
+function drawGeo() {
+  const s1=parseFloat(document.getElementById('sig1').value);
+  const s2=parseFloat(document.getElementById('sig2').value);
+  const ang=parseFloat(document.getElementById('uAngle').value)*Math.PI/180;
+  document.getElementById('sig1out').textContent=s1.toFixed(1);
+  document.getElementById('sig2out').textContent=s2.toFixed(1);
+  document.getElementById('uAngleout').textContent=document.getElementById('uAngle').value+'°';
+  const canvas=document.getElementById('geoCanvas');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height,cx=W/2,cy=H/2,sc=55;
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle='rgba(128,128,120,0.15)';ctx.lineWidth=0.5;
+  ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(W,cy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,H);ctx.stroke();
+  // unit circle
+  ctx.strokeStyle='rgba(128,128,120,0.35)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.arc(cx,cy,sc,0,2*Math.PI);ctx.stroke();ctx.setLineDash([]);
+  // ellipse transformed by U (rotation)
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(-ang);
+  ctx.strokeStyle='#185FA5';ctx.lineWidth=2;
+  ctx.beginPath();ctx.ellipse(0,0,s1*sc,s2*sc,0,0,2*Math.PI);ctx.stroke();
+  // axes
+  ctx.strokeStyle='#EF9F27';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(s1*sc,0);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-s2*sc);ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle='#EF9F27';ctx.font='12px sans-serif';
+  ctx.fillText('σ₁='+s1.toFixed(1),cx+10,cy-10);
+  ctx.fillText('σ₂='+s2.toFixed(1),cx+10,cy+18);
+  ctx.fillStyle='rgba(128,128,120,0.7)';ctx.font='11px sans-serif';
+  ctx.fillText('gray = unit circle (before A)',cx-90,H-10);
+  ctx.fillStyle='#185FA5';ctx.fillText('blue = image ellipse (after A)',cx-90,H-10);
+
+  document.getElementById('geo-info').textContent =
+    'σ_max = '+s1.toFixed(2)+' (max stretch) | σ_min = '+s2.toFixed(2)+' (min stretch) | κ = '+(s1/s2).toFixed(2);
+}
+
+// ──────── LOW-RANK APPROXIMATION ────────
+let origMatrix, svdResult;
+function initLowRank() {
+  const n=8;
+  origMatrix = Array.from({length:n},()=>Array.from({length:n},()=>Math.random()*2-1));
+  svdResult = simpleSVD(origMatrix,n);
+  drawMatrixCanvas(document.getElementById('origMat'), origMatrix, n);
+  drawLowRank();
+}
+
+function simpleSVD(A, n) {
+  // Power iteration to get top singular vectors
+  const ATA = matMul(transpose(A,n,n),A,n,n,n);
+  const eigVals=[], eigVecs=[];
+  let Acopy = ATA.map(r=>[...r]);
+  for(let k=0;k<n;k++){
+    let v=Array.from({length:n},(_,i)=>i===k?1:0);
+    for(let iter=0;iter<60;iter++){
+      let nv=matVec(Acopy,v,n);
+      const len=Math.sqrt(nv.reduce((s,x)=>s+x*x,0));
+      if(len<1e-12) break;
+      nv=nv.map(x=>x/len);
+      v=nv;
+    }
+    const lam=matVec(Acopy,v,n).reduce((s,x,i)=>s+x*v[i],0);
+    eigVals.push(Math.max(0,lam));
+    eigVecs.push(v);
+    // deflate
+    for(let i=0;i<n;i++) for(let j=0;j<n;j++) Acopy[i][j]-=lam*v[i]*v[j];
+  }
+  // sort
+  const idx=[...Array(n).keys()].sort((a,b)=>eigVals[b]-eigVals[a]);
+  const svals=idx.map(i=>Math.sqrt(eigVals[i]));
+  const V=idx.map(i=>eigVecs[i]);
+  const U=svals.map((s,k)=>s>1e-10?matVec(A,V[k],n).map(x=>x/s):Array(n).fill(0));
+  return {U,S:svals,V};
+}
+function matMul(A,B,m,k,n){return Array.from({length:m},(_,i)=>Array.from({length:n},(_,j)=>Array.from({length:k},(_,l)=>A[i][l]*B[l][j]).reduce((s,x)=>s+x,0)));}
+function transpose(A,m,n){return Array.from({length:n},(_,i)=>Array.from({length:m},(_,j)=>A[j][i]));}
+function matVec(A,v,n){return A.map(r=>r.reduce((s,x,j)=>s+x*v[j],0));}
+function outerProduct(u,v,n){return Array.from({length:n},(_,i)=>Array.from({length:n},(_,j)=>u[i]*v[j]));}
+
+function drawLowRank() {
+  const k=parseInt(document.getElementById('rankK').value);
+  document.getElementById('rankKout').textContent=k;
+  document.getElementById('approxLabel').textContent='Approximation (k='+k+')';
+  const n=8;
+  const approx=Array.from({length:n},()=>Array(n).fill(0));
+  for(let i=0;i<k;i++){
+    const op=outerProduct(svdResult.U[i],svdResult.V[i],n);
+    for(let r=0;r<n;r++) for(let c=0;c<n;c++) approx[r][c]+=svdResult.S[i]*op[r][c];
+  }
+  const err=origMatrix.map((row,r)=>row.map((v,c)=>v-approx[r][c]));
+  drawMatrixCanvas(document.getElementById('approxMat'),approx,n);
+  drawMatrixCanvas(document.getElementById('errorMat'),err,n,'error');
+  const totalEnergy=svdResult.S.reduce((s,x)=>s+x*x,0);
+  const captured=svdResult.S.slice(0,k).reduce((s,x)=>s+x*x,0);
+  document.getElementById('energy-label').textContent=
+    'Energy captured: '+(captured/totalEnergy*100).toFixed(1)+'%';
+}
+
+function drawMatrixCanvas(canvas, M, n, mode) {
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height, cw=W/n, ch=H/n;
+  let min=Infinity,max=-Infinity;
+  for(let i=0;i<n;i++) for(let j=0;j<n;j++){min=Math.min(min,M[i][j]);max=Math.max(max,M[i][j]);}
+  for(let i=0;i<n;i++) for(let j=0;j<n;j++){
+    const v=(M[i][j]-min)/(max-min+1e-10);
+    if(mode==='error'){
+      const ev=Math.abs(M[i][j])/(Math.max(Math.abs(min),Math.abs(max))+1e-10);
+      ctx.fillStyle=`hsl(0,${Math.round(ev*80)}%,${Math.round(90-ev*40)}%)`;
+    } else {
+      const h=Math.round(v*240);
+      ctx.fillStyle=`hsl(${240-h},70%,${30+v*40}%)`;
+    }
+    ctx.fillRect(j*cw,i*ch,cw,ch);
+  }
+}
+
+// ──────── INIT ────────
+window.addEventListener('load', ()=>{
+  updateEigen();
+  drawGSStatic(0);
+  drawGS();
+  drawGeo();
+  initLowRank();
+  updateProgress();
+});
+
+// Scroll spy
+const observer = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      const id=e.target.id;
+      document.querySelectorAll('.nav a').forEach(a=>{
+        a.classList.toggle('active',a.getAttribute('href')==='#'+id);
+      });
+    }
+  });
+},{threshold:0.3});
+document.querySelectorAll('.section').forEach(s=>observer.observe(s));
+</script>
+</body>
+</html>
